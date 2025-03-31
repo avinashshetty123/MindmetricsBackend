@@ -42,8 +42,9 @@ router.get("/auth/logout", (req, res) => {
   });
 });
 
-// ✅ Check User Session
 router.get("/auth/session", (req, res) => {
+  console.log("Session Data:", req.session); // Debugging line
+  console.log("Authenticated:", req.isAuthenticated()); // Debugging line
   if (req.isAuthenticated()) {
     res.json({ authenticated: true, user: req.user });
   } else {
