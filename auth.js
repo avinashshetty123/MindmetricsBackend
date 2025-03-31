@@ -3,8 +3,17 @@ import session from "express-session";
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import dotenv from "dotenv";
 import MongoStore from "connect-mongo";
+import mongoose from "mongoose";
+
+mongoose.connect(mongoURI, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+})
+.then(() => console.log("✅ Connected to MongoDB"))
+.catch((err) => console.error("❗ MongoDB Connection Error:", err));
 
 dotenv.config();
+
 const mongoURI ="mongodb+srv://abhiapril122005:pvEEjHRBbfqhrGzb@cluster0.tqmoxcl.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
 const setupAuth = (app) => {
   app.use(

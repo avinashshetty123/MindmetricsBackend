@@ -12,6 +12,7 @@ const PORT = process.env.PORT || 3000;
 // Middleware
 app.use(cors({ origin: "https://mindmetricss.netlify.app", credentials: true }));
 app.use(express.json());
+app.set("trust proxy", 1);
 
 // Setup Authentication
 setupAuth(app);
