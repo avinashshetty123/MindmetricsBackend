@@ -47,6 +47,7 @@ router.get("/auth/session", (req, res) => {
   console.log("Session Data:", req.session);
   console.log("Authenticated:", req.isAuthenticated());// Debugging line
   if (req.isAuthenticated()) {
+    console.log("User:", req.user); // Debugging line
     res.json({ authenticated: true, user: req.user });
   } else {
     res.json({ authenticated: false });
