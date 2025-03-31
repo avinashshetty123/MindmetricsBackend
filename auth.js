@@ -11,9 +11,8 @@ const setupAuth = (app) => {
     resave: false,
     saveUninitialized: false,
     cookie: {
-      secure: true, // ✅ true if using HTTPS
-      httpOnly: true,
-      sameSite: "None", // ✅ Ensure cross-site cookies work
+      secure: false,
+      
     },
   }));
 
