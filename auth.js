@@ -6,14 +6,16 @@ import dotenv from "dotenv";
 dotenv.config();
 
 const setupAuth = (app) => {
-  app.use(
-    session({
-      secret: process.env.SESSION_SECRET || "your_secret",
-      resave: false,
-      saveUninitialized: true,
-      cookie: { secure: false },
-    })
-  );
+  app.use(session({
+    secret: process.env.SESSION_SECRET,
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      secure: true, // ✅ true if using HTTPS
+      httpOnly: true,
+      sameSite: "None", // ✅ Ensure cross-site cookies work
+    },
+  }));
 
   app.use(passport.initialize());
   app.use(passport.session());
