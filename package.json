@@ -1,11 +1,13 @@
 {
   "name": "mentailstress-backend",
   "version": "1.0.0",
+  "type": "module",
   "main": "auth.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node server.js"
-  },
+"scripts": {
+  "start": "node server.js",
+  "build": "npm install",
+  "vercel-start": "node server.js"
+},
   "repository": {
     "type": "git",
     "url": "git+https://github.com/avinashshetty123/MindmetricsBackend.git"
