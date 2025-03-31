@@ -5,6 +5,7 @@ import dotenv from "dotenv";
 import MongoStore from "connect-mongo";
 import mongoose from "mongoose";
 
+const mongoURI ="mongodb+srv://abhiapril122005:pvEEjHRBbfqhrGzb@cluster0.tqmoxcl.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
 mongoose.connect(mongoURI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
@@ -14,7 +15,6 @@ mongoose.connect(mongoURI, {
 
 dotenv.config();
 
-const mongoURI ="mongodb+srv://abhiapril122005:pvEEjHRBbfqhrGzb@cluster0.tqmoxcl.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
 const setupAuth = (app) => {
   app.use(
     session({
