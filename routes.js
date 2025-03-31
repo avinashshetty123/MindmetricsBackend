@@ -15,7 +15,7 @@ const isAuthenticated = (req, res, next) => {
 // ✅ Google OAuth Routes
 router.get("/auth/google", passport.authenticate("google"));
 
-router.get("/auth/google/callback",
+rrouter.get("/auth/google/callback",
   passport.authenticate("google", { failureRedirect: "https://mindmetricss.netlify.app/sign" }),
   (req, res) => {
     req.login(req.user, (err) => {
@@ -24,10 +24,16 @@ router.get("/auth/google/callback",
         return res.redirect("https://mindmetricss.netlify.app/sign");
       }
       console.log("✅ User Logged In:", req.user);
-      res.redirect("https://mindmetricss.netlify.app/home");
+      req.session.save((err) => {
+        if (err) {
+          console.error("Session Save Error:", err);
+        }
+        res.redirect("https://mindmetricss.netlify.app/home");
+      });
     });
   }
 );
+
 router.get("/api/user-info", isAuthenticated, async (req, res) => {
   try {
     const { accessToken } = req.user;
