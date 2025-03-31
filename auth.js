@@ -6,14 +6,16 @@ import dotenv from "dotenv";
 dotenv.config();
 
 const setupAuth = (app) => {
-  app.use(
-    session({
-      secret: process.env.SESSION_SECRET || "your_secret",
-      resave: false,
-      saveUninitialized: true,
-      cookie: { secure: false },
-    })
-  );
+  app.use(session({
+    secret: process.env.SESSION_SECRET || "your_secret",
+    resave: false,
+    saveUninitialized: false,
+    cookie: { 
+      secure:true, // Secure only in production
+      httpOnly: true,
+      sameSite: "None"
+    },
+  }));
   app.use(passport.initialize());
   app.use(passport.session());
 
@@ -37,9 +39,8 @@ const setupAuth = (app) => {
       }
     )
   );
-
   passport.serializeUser((user, done) => done(null, user));
-  passport.deserializeUser((user, done) => done(null, user));
+  passport.deserializeUser((obj, done) => done(null, obj));;
 };
 
 export default setupAuth;
