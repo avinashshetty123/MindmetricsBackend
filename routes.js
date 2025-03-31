@@ -15,12 +15,17 @@ const isAuthenticated = (req, res, next) => {
 // ✅ Google OAuth Routes
 router.get("/auth/google", passport.authenticate("google"));
 
-router.get(
-  "/auth/google/callback",
+router.get("/auth/google/callback",
   passport.authenticate("google", { failureRedirect: "https://mindmetricss.netlify.app/sign" }),
   (req, res) => {
-    console.log("✅ Authentication Successful:", req.user);
-    res.redirect("https://mindmetricss.netlify.app/home");
+    req.login(req.user, (err) => {
+      if (err) {
+        console.error("Login Error:", err);
+        return res.redirect("https://mindmetricss.netlify.app/sign");
+      }
+      console.log("✅ User Logged In:", req.user);
+      res.redirect("https://mindmetricss.netlify.app/home");
+    });
   }
 );
 router.get("/api/user-info", isAuthenticated, async (req, res) => {
