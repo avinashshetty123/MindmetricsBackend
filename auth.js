@@ -2,20 +2,28 @@ import passport from "passport";
 import session from "express-session";
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import dotenv from "dotenv";
+import MongoStore from "connect-mongo";
 
 dotenv.config();
-
+const mongoURI ="mongodb+srv://abhiapril122005:pvEEjHRBbfqhrGzb@cluster0.tqmoxcl.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
 const setupAuth = (app) => {
-  app.use(session({
-    secret: process.env.SESSION_SECRET || "your_secret",
-    resave: false,
-    saveUninitialized: false,
-    cookie: { 
-      secure:true, // Secure only in production
-      httpOnly: true,
-      sameSite: "None",
-    },
-  }));
+  app.use(
+    session({
+      secret: process.env.SESSION_SECRET || "mysecret",
+      resave: false,
+      saveUninitialized: false,
+      store: MongoStore.create({
+        mongoUrl: mongoURI,
+        collectionName: "sessions",
+      }),
+      cookie: {
+        httpOnly: true,
+        secure: true, // For HTTPS
+        sameSite: "None",
+        maxAge: 24 * 60 * 60 * 1000, // 1 day
+      },
+    })
+  );
   app.use(passport.initialize());
   app.use(passport.session());
 
