@@ -11,9 +11,9 @@ const setupAuth = (app) => {
     resave: false,
     saveUninitialized: false,
     cookie: { 
-      secure:false, // Secure only in production
+      secure:true, // Secure only in production
       httpOnly: true,
-      sameSite: "Lax",
+      sameSite: "None",
     },
   }));
   app.use(passport.initialize());
@@ -39,8 +39,15 @@ const setupAuth = (app) => {
       }
     )
   );
-  passport.serializeUser((user, done) => done(null, user));
-  passport.deserializeUser((user, done) => done(null, user));;
+  passport.serializeUser((user, done) => {
+    console.log("🔎 Serializing User:", user.id || user);
+    done(null, user);
+  });
+  
+  passport.deserializeUser((user, done) => {
+    console.log("🔎 Deserializing User:", user);
+    done(null, user);
+  });
 };
 
 export default setupAuth;
