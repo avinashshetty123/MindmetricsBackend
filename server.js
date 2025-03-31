@@ -1,14 +1,19 @@
-import express from 'express';
-import dotenv from 'dotenv';
+import express from "express";
+import cors from "cors";
+import dotenv from "dotenv";
+import setupAuth from "./auth.js";
+import routes from "./routes.js";
 
 dotenv.config();
 const app = express();
-const port = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3000;
 
-app.get('/', (req, res) => {
-  res.send('MindMetrics Backend is running!');
-});
+// Middleware
+app.use(cors({ origin: "http://localhost:5173", credentials: true }));
+app.use(express.json());
 
-app.listen(port, () => {
-  console.log(`Server running on port ${port}`);
-});
+// Setup Authentication
+setupAuth(app);
+app.use("/", routes);
+
+app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
