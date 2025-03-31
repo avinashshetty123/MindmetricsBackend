@@ -15,7 +15,7 @@ const isAuthenticated = (req, res, next) => {
 // ✅ Google OAuth Routes
 router.get("/auth/google", passport.authenticate("google"));
 
-rrouter.get("/auth/google/callback",
+router.get("/auth/google/callback",
   passport.authenticate("google", { failureRedirect: "https://mindmetricss.netlify.app/sign" }),
   (req, res) => {
     req.login(req.user, (err) => {
