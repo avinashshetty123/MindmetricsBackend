@@ -15,5 +15,13 @@ app.use(express.json());
 // Setup Authentication
 setupAuth(app);
 app.use("/", routes);
+app.get("/", (req, res) => {
+    res.status(200).json({ message: "Welcome to the MindMetrics Backend!" });
+  });
+  
+  app.get("/favicon.ico", (req, res) => {
+    res.status(204).end(); // No Content
+  });
+  
 
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));

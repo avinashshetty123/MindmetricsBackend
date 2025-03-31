@@ -11,9 +11,9 @@ const setupAuth = (app) => {
     resave: false,
     saveUninitialized: false,
     cookie: { 
-      secure:true, // Secure only in production
+      secure:false, // Secure only in production
       httpOnly: true,
-      sameSite: "None"
+      sameSite: "Lax",
     },
   }));
   app.use(passport.initialize());
