@@ -1,13 +1,14 @@
 import express from "express";
 import axios from "axios";
 import passport from "passport";
+import refreshAccessToken from "../utils/refreshAccessToken.js"; // Import only once
 
 const router = express.Router();
 
 // ✅ Middleware to Check Authentication
 const isAuthenticated = (req, res, next) => {
   if (req.isAuthenticated()) {
-    return next(); // User is authenticated, proceed
+    return next();
   }
   res.status(401).json({ error: "Unauthorized access. Please log in." });
 };
@@ -15,7 +16,8 @@ const isAuthenticated = (req, res, next) => {
 // ✅ Google OAuth Routes
 router.get("/auth/google", passport.authenticate("google"));
 
-router.get("/auth/google/callback",
+router.get(
+  "/auth/google/callback",
   passport.authenticate("google", { failureRedirect: "https://mindmetricss.netlify.app/sign" }),
   (req, res) => {
     req.login(req.user, (err) => {
@@ -34,19 +36,6 @@ router.get("/auth/google/callback",
   }
 );
 
-router.get("/api/user-info", isAuthenticated, async (req, res) => {
-  try {
-    const { accessToken } = req.user;
-    const response = await axios.get("https://www.googleapis.com/oauth2/v2/userinfo", {
-      headers: { Authorization: `Bearer ${accessToken}` },
-    });
-
-    res.json(response.data);
-  } catch (error) {
-    console.error("Error fetching user info:", error);
-    res.status(500).json({ error: "Failed to fetch user info" });
-  }
-});
 // ✅ Logout Route
 router.get("/auth/logout", (req, res) => {
   req.logout((err) => {
@@ -56,25 +45,23 @@ router.get("/auth/logout", (req, res) => {
   });
 });
 
+// ✅ Check Session
 router.get("/auth/session", (req, res) => {
   console.log("Session ID:", req.sessionID);
   console.log("Session Data:", req.session);
-  if (req.isAuthenticated()) {
-    console.log("Authenticated!");
-    res.json({ authenticated: true, user: req.user });
-  } else {
-    console.log("Not Authenticated.");
-    res.json({ authenticated: false });
-  }
+  res.json({ authenticated: req.isAuthenticated(), user: req.user || null });
 });
 
-// ✅ Fetch Google Fit Data (Protected)
+// ✅ Fetch Google Fit Steps
 router.get("/api/steps", isAuthenticated, async (req, res) => {
   try {
-    const user = req.user;
+    let user = req.user;
     if (!user?.accessToken) {
       return res.status(401).json({ error: "Unauthorized" });
     }
+
+    // 🔄 Refresh access token if needed
+    const validAccessToken = await refreshAccessToken(user) || user.accessToken;
 
     const response = await axios.post(
       "https://www.googleapis.com/fitness/v1/users/me/dataset:aggregate",
@@ -82,7 +69,7 @@ router.get("/api/steps", isAuthenticated, async (req, res) => {
         aggregateBy: [
           {
             dataTypeName: "com.google.step_count.delta",
-            dataSourceId: "derived:com.google.step_count.delta:com.google.android.gms:merge_step_deltas", // Changed here
+            dataSourceId: "derived:com.google.step_count.delta:com.google.android.gms:merge_step_deltas",
           },
         ],
         bucketByTime: { durationMillis: 86400000 },
@@ -90,7 +77,7 @@ router.get("/api/steps", isAuthenticated, async (req, res) => {
         endTimeMillis: Date.now(),
       },
       {
-        headers: { Authorization: `Bearer ${user.accessToken}` },
+        headers: { Authorization: `Bearer ${validAccessToken}` },
       }
     );
 
@@ -107,57 +94,58 @@ router.get("/api/steps", isAuthenticated, async (req, res) => {
 
     res.json({ steps: totalSteps });
   } catch (error) {
-    console.error("Error fetching step count data:", error?.response?.data || error.message);
+    console.error("❗ Error fetching step count data:", error?.response?.data || error.message);
     res.status(500).json({ error: error?.response?.data?.error?.message || "Failed to fetch step data" });
   }
 });
 
-// ✅ Fetch User Info from Google (Protected)
-router.get("/api/user-info", isAuthenticated, async (req, res) => {
+// ✅ Fetch Google Fit Heart Rate
+router.get("/api/heart-rate", isAuthenticated, async (req, res) => {
   try {
-    const user = req.user;
+    let user = req.user;
     if (!user?.accessToken) {
       return res.status(401).json({ error: "Unauthorized" });
     }
 
-    const response = await axios.get("https://www.googleapis.com/oauth2/v2/userinfo", {
-      headers: { Authorization: `Bearer ${user.accessToken}` },
-    });
-
-    res.json(response.data);
-  } catch (error) {
-    console.error("Error fetching user info:", error);
-    res.status(500).json({ error: "Failed to fetch user info" });
-  }
-});
-router.get('/api/heart-rate', isAuthenticated, async (req, res) => {
-  try {
-    const user = req.user;
-    if (!user?.accessToken) {
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
+    // 🔄 Refresh access token if needed
+    const validAccessToken = await refreshAccessToken(user) || user.accessToken;
 
     const response = await axios.post(
-      'https://www.googleapis.com/fitness/v1/users/me/dataset:aggregate',
+      "https://www.googleapis.com/fitness/v1/users/me/dataset:aggregate",
       {
-        aggregateBy: [
-          {
-            dataTypeName: 'com.google.heart_rate.bpm',
-          },
-        ],
+        aggregateBy: [{ dataTypeName: "com.google.heart_rate.bpm" }],
         bucketByTime: { durationMillis: 86400000 },
         startTimeMillis: Date.now() - 86400000,
         endTimeMillis: Date.now(),
       },
       {
-        headers: { Authorization: `Bearer ${user.accessToken}` },
+        headers: { Authorization: `Bearer ${validAccessToken}` },
       }
     );
 
     res.json(response.data);
   } catch (error) {
-    console.error('Error fetching heart rate data:', error);
-    res.status(500).json({ error: 'Failed to fetch heart rate data' });
+    console.error("❗ Error fetching heart rate data:", error?.response?.data || error.message);
+    res.status(500).json({ error: error?.response?.data?.error?.message || "Failed to fetch heart rate data" });
+  }
+});
+
+// ✅ Fetch User Info
+router.get("/api/user-info", isAuthenticated, async (req, res) => {
+  try {
+    let user = req.user;
+    if (!user?.accessToken) return res.status(401).json({ error: "Unauthorized" });
+
+    const validAccessToken = await refreshAccessToken(user) || user.accessToken;
+
+    const response = await axios.get("https://www.googleapis.com/oauth2/v2/userinfo", {
+      headers: { Authorization: `Bearer ${validAccessToken}` },
+    });
+
+    res.json(response.data);
+  } catch (error) {
+    console.error("❗ Error fetching user info:", error);
+    res.status(500).json({ error: "Failed to fetch user info" });
   }
 });
 
@@ -169,22 +157,18 @@ const navItems = [
   { name: "Contact", path: "/contact" },
 ];
 
-// ✅ Home (Protected)
 router.get("/home", isAuthenticated, (req, res) => {
   res.json({ message: "Welcome to Home Page", user: req.user, navItems });
 });
 
-// ✅ Recipes (Protected)
 router.get("/recipes", isAuthenticated, (req, res) => {
   res.json({ message: "Welcome to the Recipes Page", recipes: [] });
 });
 
-// ✅ About (Protected)
 router.get("/about", isAuthenticated, (req, res) => {
   res.json({ message: "About Us Page", description: "Learn more about us!" });
 });
 
-// ✅ Contact (Protected)
 router.get("/contact", isAuthenticated, (req, res) => {
   res.json({ message: "Contact Us", email: "avinashshetty4455@example.com" });
 });
