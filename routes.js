@@ -7,9 +7,7 @@ const router = express.Router();
 
 // ✅ Middleware to Check Authentication
 const isAuthenticated = (req, res, next) => {
-  if (req.isAuthenticated()) {
-    return next();
-  }
+  if (req.isAuthenticated()) return next();
   res.status(401).json({ error: "Unauthorized access. Please log in." });
 };
 
@@ -27,9 +25,7 @@ router.get(
       }
       console.log("✅ User Logged In:", req.user);
       req.session.save((err) => {
-        if (err) {
-          console.error("Session Save Error:", err);
-        }
+        if (err) console.error("Session Save Error:", err);
         res.redirect("https://mindmetricss.netlify.app/home");
       });
     });
@@ -52,16 +48,23 @@ router.get("/auth/session", (req, res) => {
   res.json({ authenticated: req.isAuthenticated(), user: req.user || null });
 });
 
+// ✅ Utility Function to Get Valid Access Token
+const getValidAccessToken = async (user) => {
+  if (!user?.accessToken) return null;
+  const newToken = await refreshAccessToken(user);
+  if (newToken) {
+    user.accessToken = newToken;
+    return newToken;
+  }
+  return user.accessToken;
+};
+
 // ✅ Fetch Google Fit Steps
 router.get("/api/steps", isAuthenticated, async (req, res) => {
   try {
     let user = req.user;
-    if (!user?.accessToken) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
-
-    // 🔄 Refresh access token if needed
-    const validAccessToken = await refreshAccessToken(user) || user.accessToken;
+    const validAccessToken = await getValidAccessToken(user);
+    if (!validAccessToken) return res.status(401).json({ error: "Unauthorized" });
 
     const response = await axios.post(
       "https://www.googleapis.com/fitness/v1/users/me/dataset:aggregate",
@@ -103,12 +106,8 @@ router.get("/api/steps", isAuthenticated, async (req, res) => {
 router.get("/api/heart-rate", isAuthenticated, async (req, res) => {
   try {
     let user = req.user;
-    if (!user?.accessToken) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
-
-    // 🔄 Refresh access token if needed
-    const validAccessToken = await refreshAccessToken(user) || user.accessToken;
+    const validAccessToken = await getValidAccessToken(user);
+    if (!validAccessToken) return res.status(401).json({ error: "Unauthorized" });
 
     const response = await axios.post(
       "https://www.googleapis.com/fitness/v1/users/me/dataset:aggregate",
@@ -134,9 +133,8 @@ router.get("/api/heart-rate", isAuthenticated, async (req, res) => {
 router.get("/api/user-info", isAuthenticated, async (req, res) => {
   try {
     let user = req.user;
-    if (!user?.accessToken) return res.status(401).json({ error: "Unauthorized" });
-
-    const validAccessToken = await refreshAccessToken(user) || user.accessToken;
+    const validAccessToken = await getValidAccessToken(user);
+    if (!validAccessToken) return res.status(401).json({ error: "Unauthorized" });
 
     const response = await axios.get("https://www.googleapis.com/oauth2/v2/userinfo", {
       headers: { Authorization: `Bearer ${validAccessToken}` },
@@ -147,30 +145,6 @@ router.get("/api/user-info", isAuthenticated, async (req, res) => {
     console.error("❗ Error fetching user info:", error);
     res.status(500).json({ error: "Failed to fetch user info" });
   }
-});
-
-// ✅ Navigation Routes (Protected)
-const navItems = [
-  { name: "Home", path: "/home" },
-  { name: "Recipes", path: "/recipes" },
-  { name: "About", path: "/about" },
-  { name: "Contact", path: "/contact" },
-];
-
-router.get("/home", isAuthenticated, (req, res) => {
-  res.json({ message: "Welcome to Home Page", user: req.user, navItems });
-});
-
-router.get("/recipes", isAuthenticated, (req, res) => {
-  res.json({ message: "Welcome to the Recipes Page", recipes: [] });
-});
-
-router.get("/about", isAuthenticated, (req, res) => {
-  res.json({ message: "About Us Page", description: "Learn more about us!" });
-});
-
-router.get("/contact", isAuthenticated, (req, res) => {
-  res.json({ message: "Contact Us", email: "avinashshetty4455@example.com" });
 });
 
 export default router;

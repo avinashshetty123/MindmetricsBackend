@@ -36,7 +36,6 @@ const setupAuth = (app) => {
   );
   app.use(passport.initialize());
   app.use(passport.session());
-
   passport.use(
     new GoogleStrategy(
       {
@@ -49,19 +48,34 @@ const setupAuth = (app) => {
           "https://www.googleapis.com/auth/fitness.activity.read",
           "https://www.googleapis.com/auth/fitness.heart_rate.read",
         ],
+        accessType: "offline", // ✅ Ensures refresh token is provided
+        prompt: "consent", // ✅ Forces Google to send refresh token every time
       },
       async (accessToken, refreshToken, profile, done) => {
-        profile.accessToken = accessToken;
-        profile.refreshToken = refreshToken;
-        return done(null, profile);
+        if (!refreshToken) {
+          console.warn("⚠ No refresh token received! User may have previously authorized the app.");
+        }
+        const user = {
+          id: profile.id,
+          name: profile.displayName,
+          email: profile.emails[0].value,
+          accessToken,
+          refreshToken, // ✅ Store refresh token for future use
+        };
+        return done(null, user);
       }
     )
   );
+
   passport.serializeUser((user, done) => {
-    console.log("🔎 Serializing User:", user.id || user);
-    done(null, user);
+    console.log("🔎 Serializing User:", user.id);
+    done(null, {
+      id: user.id,
+      accessToken: user.accessToken,
+      refreshToken: user.refreshToken,
+    });
   });
-  
+
   passport.deserializeUser((user, done) => {
     console.log("🔎 Deserializing User:", user);
     done(null, user);
