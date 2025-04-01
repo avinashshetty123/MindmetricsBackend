@@ -1,7 +1,7 @@
 import express from "express";
 import axios from "axios";
 import passport from "passport";
-import refreshAccessToken from "../utils/refreshAccessToken.js"; // Import only once
+import refreshAccessToken from "./refreshAccessToken"; // Import only once
 
 const router = express.Router();
 
