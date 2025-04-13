@@ -121,23 +121,36 @@ router.get("/api/heart-rate", isAuthenticated, async (req, res) => {
     const validAccessToken = await getValidAccessToken(user);
     if (!validAccessToken) return res.status(401).json({ error: "Unauthorized" });
 
-    const response = await axios.post(
-      "https://www.googleapis.com/fitness/v1/users/me/dataset:aggregate",
+    // Set time range (last 24 hours)
+    const endTimeMillis = Date.now();
+    const startTimeMillis = endTimeMillis - 86400000;
+
+    const datasetId = `${startTimeMillis}000000-${endTimeMillis}000000`; // microseconds
+
+    const response = await axios.get(
+      `https://www.googleapis.com/fitness/v1/users/me/dataSources/derived:com.google.heart_rate.bpm:com.google.android.gms:merge_heart_rate_bpm/datasets/${datasetId}`,
       {
-        aggregateBy: [{ dataTypeName: "com.google.heart_rate.bpm" }],
-        bucketByTime: { durationMillis: 86400000 },
-        startTimeMillis: Date.now() - 86400000,
-        endTimeMillis: Date.now(),
-      },
-      {
-        headers: { Authorization: `Bearer ${validAccessToken}` },
+        headers: {
+          Authorization: `Bearer ${validAccessToken}`,
+        },
       }
     );
 
-    res.json(response.data);
+    const heartRates = [];
+
+    response.data?.point?.forEach((point) => {
+      const bpm = point.value[0].fpVal;
+      const time = parseInt(point.startTimeNanos) / 1e6; // convert to millis
+      heartRates.push({ bpm, time });
+    });
+
+    res.json({ heartRates });
+
   } catch (error) {
-    console.error("❗ Error fetching heart rate data:", error?.response?.data || error.message);
-    res.status(500).json({ error: error?.response?.data?.error?.message || "Failed to fetch heart rate data" });
+    console.error("❌ Heart Rate Fetch Error:", error?.response?.data || error.message);
+    res.status(500).json({
+      error: error?.response?.data?.error?.message || "Failed to fetch heart rate data",
+    });
   }
 });
 
