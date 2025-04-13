@@ -33,11 +33,23 @@ router.get(
 );
 
 // ✅ Logout Route
+// ✅ Logout Route (Clean & Neat)
 router.get("/auth/logout", (req, res) => {
   req.logout((err) => {
-    if (err) return res.status(500).json({ error: "Logout failed" });
-    req.session.destroy();
-    res.send({ message: "Logged out successfully" });
+    if (err) {
+      console.error("Logout Error:", err);
+      return res.status(500).json({ error: "Logout failed" });
+    }
+
+    req.session.destroy((err) => {
+      if (err) {
+        console.error("Session Destroy Error:", err);
+        return res.status(500).json({ error: "Failed to destroy session" });
+      }
+
+      res.clearCookie("connect.sid"); // Optional: clears the session cookie
+      res.redirect("https://mindmetricss.netlify.app/sign");
+    });
   });
 });
 
