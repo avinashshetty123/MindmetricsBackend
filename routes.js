@@ -2,7 +2,7 @@ import express from "express";
 import axios from "axios";
 import passport from "passport";
 import fs from "fs";
-import ort from "onnxruntime-node";
+import * as ort from 'onnxruntime-web';
 import { parseData } from "./parsedata.js";
 import refreshAccessToken from "./refreshAccessToken.js"; // Import only once
 
