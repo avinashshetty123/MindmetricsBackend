@@ -1,9 +1,20 @@
 import express from "express";
 import axios from "axios";
 import passport from "passport";
+import fs from "fs";
+import * as ort from 'onnxruntime-web';
+import { parseData } from "./parsedata.js";
 import refreshAccessToken from "./refreshAccessToken.js"; // Import only once
 
 const router = express.Router();
+const scalerData = JSON.parse(fs.readFileSync("./scaler.json", "utf-8"));
+const labelEncoder = JSON.parse(fs.readFileSync("./labels.json", "utf-8"));
+let session;
+ort.InferenceSession.create("./rf_model.onnx").then((s) => {
+  session = s;
+}).catch((err) => {
+  console.error("❌ Failed to load ONNX model:", err);
+});
 
 // ✅ Middleware to Check Authentication
 const isAuthenticated = (req, res, next) => {
@@ -117,34 +128,44 @@ router.get("/api/steps", isAuthenticated, async (req, res) => {
 // ✅ Fetch Google Fit Heart Rate
 router.get("/api/heart-rate", isAuthenticated, async (req, res) => {
   try {
-    let user = req.user;
+    const user = req.user;
     const validAccessToken = await getValidAccessToken(user);
     if (!validAccessToken) return res.status(401).json({ error: "Unauthorized" });
 
-    // Set time range (last 24 hours)
     const endTimeMillis = Date.now();
     const startTimeMillis = endTimeMillis - 86400000;
-
-    const datasetId = `${startTimeMillis}000000-${endTimeMillis}000000`; // microseconds
+    const datasetId = `${startTimeMillis}000000-${endTimeMillis}000000`;
 
     const response = await axios.get(
       `https://www.googleapis.com/fitness/v1/users/me/dataSources/derived:com.google.heart_rate.bpm:com.google.android.gms:merge_heart_rate_bpm/datasets/${datasetId}`,
       {
-        headers: {
-          Authorization: `Bearer ${validAccessToken}`,
-        },
+        headers: { Authorization: `Bearer ${validAccessToken}` },
       }
     );
 
-    const heartRates = [];
+    const heartRates = response.data?.point?.map((p) => ({
+      bpm: p.value[0].fpVal,
+      time: parseInt(p.startTimeNanos) / 1e6,
+    })) || [];
 
-    response.data?.point?.forEach((point) => {
-      const bpm = point.value[0].fpVal;
-      const time = parseInt(point.startTimeNanos) / 1e6; // convert to millis
-      heartRates.push({ bpm, time });
+    if (heartRates.length < 10) {
+      return res.status(400).json({ error: "Not enough heart rate data" });
+    }
+
+    const features = parseData(heartRates);
+    const inputArray = scalerData.mean.map((mean, i) => 
+      (features[scalerData.columns[i]] - mean) / scalerData.std[i]
+    );
+    const inputTensor = new ort.Tensor("float32", Float32Array.from(inputArray), [1, inputArray.length]);
+
+    const output = await session.run({ input: inputTensor });
+    const prediction = output.output.data[0];
+    const stressLevel = labelEncoder[prediction.toString()] ?? prediction;
+
+    res.json({
+      stress: stressLevel,
+      heartRates, // ✅ return for graph
     });
-
-    res.json({ heartRates });
 
   } catch (error) {
     console.error("❌ Heart Rate Fetch Error:", error?.response?.data || error.message);
@@ -153,6 +174,7 @@ router.get("/api/heart-rate", isAuthenticated, async (req, res) => {
     });
   }
 });
+
 
 // ✅ Fetch User Info
 router.get("/api/user-info", isAuthenticated, async (req, res) => {
