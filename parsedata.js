@@ -1,5 +1,29 @@
-import { mean, median, std, sqrt, kurtosis, skewness } from "mathjs";
+import { mean, median, std, sqrt } from "mathjs";
 import fft from "fft-js";
+
+// Function to compute skewness
+function computeSkewness(arr) {
+  const m = mean(arr);
+  const s = std(arr);
+  const n = arr.length;
+  return (
+    (n / ((n - 1) * (n - 2))) *
+    arr.reduce((acc, x) => acc + Math.pow((x - m) / s, 3), 0)
+  );
+}
+
+// Function to compute kurtosis
+function computeKurtosis(arr) {
+  const m = mean(arr);
+  const s = std(arr);
+  const n = arr.length;
+  return (
+    ((n * (n + 1)) /
+      ((n - 1) * (n - 2) * (n - 3))) *
+      arr.reduce((acc, x) => acc + Math.pow((x - m) / s, 4), 0) -
+    (3 * Math.pow(n - 1, 2)) / ((n - 2) * (n - 3))
+  );
+}
 
 export function parseData(heartRates) {
   if (!Array.isArray(heartRates) || heartRates.length < 2) {
@@ -26,8 +50,8 @@ export function parseData(heartRates) {
   const sd1 = sqrt(rmssd ** 2 / 2);
   const sd2 = sqrt(2 * sdrr ** 2 - sd1 ** 2);
 
-  const kurt = kurtosis(rrIntervals);
-  const skew = skewness(rrIntervals);
+  const kurt = computeKurtosis(rrIntervals);  // Updated: Using manual kurtosis function
+  const skew = computeSkewness(rrIntervals); // Updated: Using manual skewness function
 
   // Relative RR intervals
   const relRR = rrIntervals.map(rr => (rr - meanRR) / meanRR);
@@ -37,8 +61,8 @@ export function parseData(heartRates) {
   const rmssdRelRR = sqrt(mean(relRR.map((v, i, arr) => i > 0 ? (v - arr[i - 1]) ** 2 : 0).slice(1)));
   const sdsdRelRR = std(relRR.map((v, i, arr) => i > 0 ? v - arr[i - 1] : 0).slice(1));
   const sdrr_rmssd_rel = sdrrRelRR / rmssdRelRR;
-  const kurtRelRR = kurtosis(relRR);
-  const skewRelRR = skewness(relRR);
+  const kurtRelRR = computeKurtosis(relRR);  // Updated: Using manual kurtosis function
+  const skewRelRR = computeSkewness(relRR); // Updated: Using manual skewness function
 
   // Frequency-domain (simplified)
   const rrMeanCentered = rrIntervals.map(v => v - meanRR);
