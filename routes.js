@@ -1,9 +1,20 @@
 import express from "express";
 import axios from "axios";
 import passport from "passport";
+import fs from "fs";
+import ort from "onnxruntime-node";
+import { parseData } from "./parsedata.js";
 import refreshAccessToken from "./refreshAccessToken.js"; // Import only once
 
 const router = express.Router();
+const scalerData = JSON.parse(fs.readFileSync("./scaler.json", "utf-8"));
+const labelEncoder = JSON.parse(fs.readFileSync("./labels.json", "utf-8"));
+let session;
+ort.InferenceSession.create("./rf_model.onnx").then((s) => {
+  session = s;
+}).catch((err) => {
+  console.error("❌ Failed to load ONNX model:", err);
+});
 
 // ✅ Middleware to Check Authentication
 const isAuthenticated = (req, res, next) => {
@@ -136,7 +147,31 @@ router.get("/api/heart-rate", isAuthenticated, async (req, res) => {
       }
     );
 
-    const heartRates = [];
+    const heartRates = response.data?.point?.map((p) => ({
+      bpm: p.value[0].fpVal,
+      time: parseInt(p.startTimeNanos) / 1e6,
+    })) || [];
+
+    if (heartRates.length < 10) {
+      return res.status(400).json({ error: "Not enough heart rate data" });
+    }
+
+    // ✅ Parse HRV features
+    const features = parseData(heartRates);
+
+    // ✅ Scale features
+    const inputArray = scaler.mean.map((mean, i) => (features[scaler.columns[i]] - mean) / scaler.std[i]);
+    const inputTensor = new ort.Tensor("float32", Float32Array.from(inputArray), [1, inputArray.length]);
+
+    // ✅ Predict using ONNX model
+    const output = await session.run({ input: inputTensor });
+    const prediction = output.output.data[0];
+
+    // ✅ Decode label (if label encoder used)
+    const stressLevel = labelEncoder[prediction.toString()] ?? prediction;
+
+    res.json({ stress: stressLevel });
+
 
     response.data?.point?.forEach((point) => {
       const bpm = point.value[0].fpVal;
